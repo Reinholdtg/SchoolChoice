@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+
+import argparse, sys, random
+
+def gen_studs(students, schools, algorythm, wanted):
+	f = open('students.txt', 'w')
+	f.write('# ID\tPreference List\n')
+
+	for i in range(1, students + 1):
+		picked_schools = list(range(1, schools + 1))
+		random.shuffle(picked_schools)
+		f.write('{:d}\t{:s}\n'.format(i, ','.join(map(str, picked_schools))))
+
+	f.close()
+
+def gen_master(students, schools, algorythm, wanted):
+	f = open('masterPrefList.txt', 'w')
+	f.write('# Student ID\n')
+	picked_students = list(range(1, students + 1))
+	random.shuffle(picked_students)
+	for student_id in picked_students:
+		f.write('{:d}\n'.format(student_id))
+
+	f.close()
+
+def gen_schools(students, schools, algorythm, wanted):
+	f = open('schools.txt', 'w')
+	f.write('# ID\tcapacity\tprefList\tPickOrder\n')
+
+	student_ids = range(1, students + 1)
+
+	for i in range(1, schools + 1):
+		cap = random.randint(int(students / schools), int((students / schools) * 1.1))
+		wanted_students = int(wanted / 100 * cap)
+		picked_students = random.sample(student_ids, wanted_students)
+		f.write('{:d}\t{:d}\t{:s}\t{:d}\n'.format(
+			i,
+			cap,
+			','.join(map(str, picked_students)),
+			algorythm
+		))
+
+	f.close()
+
+def main():
+	parser = argparse.ArgumentParser(
+		usage='usage: gendta [OPTION]...',
+		formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=100),
+		add_help=False,
+		description='Generate data for bostonAlg'
+	)
+
+	general_group = parser.add_argument_group('options')
+
+	general_group.add_argument('-s', '--schools',
+		dest='schools', metavar='N', type=int, default=0, help='Number of schools'
+	)
+
+	general_group.add_argument('-i', '--students',
+		dest='students', metavar='N', type=int, default=0, help='Number of students'
+	)
+
+	general_group.add_argument('-a', '--algorythm',
+		dest='algorythm', metavar='N', type=int, default=1, help='Algorythm for school caculation'
+	)
+
+	general_group.add_argument('-w', '--wanted',
+		dest='wanted', metavar='N', type=int, default=50, help='Percent of students schools want'
+	)
+
+	general_group.add_argument('--help',
+		dest='help', action='store_true', default=False, help='show this help message and exit'
+	)
+
+	args = parser.parse_args()
+
+	if args.help:
+		parser.print_help()
+		sys.exit(0)
+
+	gen_studs(args.students, args.schools, args.algorythm, args.wanted)
+	gen_master(args.students, args.schools, args.algorythm, args.wanted)
+	gen_schools(args.students, args.schools, args.algorythm, args.wanted)
+
+main()
+# vim: noet sw=2 ts=2 sts=2

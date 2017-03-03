@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+
+import argparse, sys, random
+
+def save(students, schools, args):
+	f = open('students.txt', 'w')
+	f.write('# ID\tPreference List\n')
+
+	for student in students:
+		f.write('{:d}\t{:s}\n'.format(
+			student['id'],
+			','.join(map(str, student['pref']))
+		))
+
+	f.close()
+
+	f = open('schools.txt', 'w')
+	f.write('# ID\tcapacity\tprefList\tPickOrder\n')
+
+	for school in schools:
+		f.write('{:d}\t{:d}\t{:s}\t{:d}\n'.format(
+			school['id'],
+			school['cap'],
+			','.join(map(str, school['pref'])),
+			args.algorythm
+		))
+
+	f.close()
+
+	f = open('masterPrefList.txt', 'w')
+	f.write('# Student ID\n')
+	for student in sorted(students, reverse=True, key=lambda student: student['grade']):
+		f.write('{:d}\n'.format(student['id']))
+
+	f.close()
+
+def main():
+	parser = argparse.ArgumentParser(
+		usage='usage: gendta [OPTION]...',
+		formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=100),
+		add_help=False,
+		description='Generate data for bostonAlg'
+	)
+
+	general_group = parser.add_argument_group('options')
+
+	general_group.add_argument('-s', '--schools',
+		dest='schools', metavar='N', type=int, default=0, help='Number of schools'
+	)
+
+	general_group.add_argument('-i', '--students',
+		dest='students', metavar='N', type=int, default=0, help='Number of students'
+	)
+
+	general_group.add_argument('-a', '--algorythm',
+		dest='algorythm', metavar='N', type=int, default=1, help='Algorythm for school caculation'
+	)
+
+	general_group.add_argument('-w', '--wanted',
+		dest='wanted', metavar='N', type=int, default=50, help='Percent of students schools want'
+	)
+
+	general_group.add_argument('--help',
+		dest='help', action='store_true', default=False, help='show this help message and exit'
+	)
+
+	args = parser.parse_args()
+
+	if args.help:
+		parser.print_help()
+		sys.exit(0)
+
+	students = []
+	for student_id in range(1, args.students + 1):
+		student = dict()
+		student['id'] = student_id
+		student['loc'] = random.random()
+		student['grade'] = random.random()
+		students.append(student)
+
+	i_grade = sorted(students, key=lambda student: student['grade'])
+
+	schools = []
+	for school_id in range(1, args.schools + 1):
+		# Bottom 50% of students, random sorted
+		if args.wanted:
+			pref = i_grade[0:int(len(students) / (100 / args.wanted))]
+			pref = list(map(lambda student: student['id'], pref))
+			random.shuffle(pref)
+		else:
+			pref = [-1]
+
+		school = dict()
+		school['id'] = school_id
+		school['cap'] = random.randint(int(1 + args.students / args.schools), int((1 + args.students / args.schools) * 1.1))
+		school['loc'] = random.random()
+		school['pref'] = pref
+		schools.append(school)
+
+	for student in students:
+		s_loc = sorted(schools, key=lambda school:
+				abs(school['loc'] - student['loc']))
+		student['pref'] = map(lambda s: s['id'], s_loc)
+
+	save(students, schools, args)
+
+main()
+# vim: noet sw=2 ts=2 sts=2

@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+
+import sys
+
+schools = dict()
+
+with sys.stdin as f:
+	for line in f:
+		if line[0] != '#':
+			cols = line.rstrip().split('\t')
+			
+			school_id  = int(cols[0])
+			student_id = int(cols[1])
+
+			if school_id not in schools:
+				schools[school_id] = []
+			
+			schools[school_id].append(student_id)
+
+print('# School ID\tIDs')
+
+for school_id in schools:
+	ids =  ' '.join(map(lambda x: str(x), schools[school_id]))
+	print('{:d}\t{:s}'.format(school_id, ids))

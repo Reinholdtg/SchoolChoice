@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+import sys
+
+schools = dict()
+resv_count = 0
+open_count = 0
+
+with open('schools.txt', 'r') as f:
+	for line in f:
+		if line[0] != '#':
+			cols = line.split('\t')
+			
+			school_id = int(cols[0])
+			pref_list = cols[2].split(',')
+			for k, a in enumerate(pref_list):
+				pref_list[k] = int(pref_list[k].strip())
+			
+			school = dict()
+			school['pref'] = pref_list
+			school['id'] = school_id
+			school['open'] = 0
+			school['resv'] = 0
+
+			schools[school_id] = school
+
+with sys.stdin as f:
+	for line in f:
+		if line[0] != '#':
+			cols = line.rstrip().split('\t')
+			
+			school_id  = int(cols[0])
+			student_id = int(cols[1])
+			school     = schools[school_id]
+
+			if student_id in school['pref']:
+				school['resv'] = school['resv'] + 1
+			else:
+				school['open'] = school['open'] + 1
+
+print('School ID\tResv\tOpen\tR%\tO%')
+
+for (school_id, school) in schools.items():
+
+	resv_count = school['resv']
+	open_count = school['open']	
+	resv_percent = resv_count / (open_count + resv_count) * 100
+	open_percent = open_count / (resv_count + open_count) * 100
+
+	print('{:d}\t{:d}\t{:d}\t{:f}\t{:f}'.format(school['id'], resv_count, open_count, resv_percent, open_percent))

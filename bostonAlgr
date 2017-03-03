@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+
+import argparse, sys
+
+pick_order = dict()
+pick_order['RESERVE_OPEN'] = 1
+pick_order['TOGGLE_RESERVE_OPEN'] = 2
+pick_order['OPEN_RESERVE'] = 3
+pick_order['TOGGLE_OPEN_RESERVE'] = 4
+
+class Student(object):
+	def __init__(self, id, pref_list):
+		self.id = id
+		self.pref_list = pref_list
+		self.school = None
+		self.priority = 0
+
+	def add_school(self, school_id):
+		self.school = school_id
+
+	def is_avail(self):
+		if self.school is None:
+			return True
+		else:
+			return False
+
+class School(object):
+	def __init__(self, id, capacity, pref_list, pick_order):
+		self.id = id
+		self.capacity = capacity
+		self.pref_list = pref_list
+		self.pick_order = pick_order
+		self.students = set()
+
+	def add_students(self, students):
+		for student_id in students:
+			if self.capacity is 0:
+				break
+
+			self.students.add(student_id)
+			self.capacity = self.capacity - 1
+			student = get_student(student_id)
+			student.add_school(self.id)
+
+def load_data(school_file, student_file, master_file):
+
+	students = set()
+	schools = set()
+	master_pref_list = []
+
+	with open(school_file, 'r') as f:
+		for line in f:
+			if line[0] != '#':
+				cols = line.split('\t')
+				id = int(cols[0])
+				capacity = int(cols[1])
+				pref_list = cols[2].split(',')
+				pick_order = int(cols[3])
+				for k, a in enumerate(pref_list):
+					pref_list[k] = int(pref_list[k].strip())
+				schools.add(School(id, capacity, pref_list, pick_order))
+
+	with open(student_file, 'r') as f:
+		for line in f:
+			if line[0] != '#':
+				cols = line.rstrip().split('\t')
+				id = int(cols[0])
+				pref_list = cols[1].split(',')
+				for k, a in enumerate(pref_list):
+					pref_list[k] = int(pref_list[k].strip())
+				students.add(Student(id, pref_list))
+
+	with open(master_file, 'r') as f:
+		for line in f:
+			if line[0] != '#':
+				cols = line.split('\t')
+				student_id = int(cols[0].strip())
+				master_pref_list.append(student_id)
+
+	return (students, schools, master_pref_list)
+
+student_by_id = dict()
+def get_student(id):
+	return student_by_id[id]
+
+# Returns a list of accepted students:
+def prec_order(cap, student_wish, pref_list):
+	prec_studs = []
+
+	if cap > 0:
+		for student_id in pref_list:
+			if student_id in student_wish:
+				prec_studs.append(student_id)
+				cap = cap - 1
+
+				if cap is 0:
+					break
+
+	return prec_studs
+
+def main():
+	parser = argparse.ArgumentParser(
+		usage='usage: bostonAlgr | [OPTION]...',
+		formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=100),
+		add_help=False,
+		description='Calculate boston algorithm'
+	)
+
+	general_group = parser.add_argument_group('options')
+
+	general_group.add_argument('-s', '--school-file',
+		dest='school_file', default='schools.txt', help='File with schools, default is schools.txt'
+	)
+	general_group.add_argument('-i', '--student-file',
+		dest='student_file', default='students.txt', help='File with students, default is students.txt'
+	)
+	general_group.add_argument('-m', '--master-preference-file',
+		dest='master_file', default='masterPrefList.txt', help='File with master preferences, default is masterPrefList.txt'
+	)
+
+	general_group.add_argument('--help',
+		dest='help', action='store_true', default=False, help='show this help message and exit'
+	)
+
+	args = parser.parse_args()
+
+	if args.help:
+		parser.print_help()
+		sys.exit(0)
+
+	(students, schools, master_pref_list) = load_data(args.school_file, args.student_file, args.master_file)
+
+	for student in students:
+		student_by_id[student.id] = student
+
+	unmatched_student_ids = set(map(lambda x: x.id, students))
+
+	while len(unmatched_student_ids) > 0:
+		for school in schools:
+			if school.capacity is 0:
+				pass
+
+			student_wish_resv = set()
+			student_wish_open = set()
+			
+			for student_id in unmatched_student_ids:
+				student = get_student(student_id)
+				topPref = student.pref_list[student.priority]
+				if topPref is school.id:
+					if student.id in school.pref_list:
+						student_wish_resv.add(student.id)
+					else:
+						student_wish_open.add(student.id)
+
+			# print(school.id, school.pref_list, list(student_wish_resv), 'resv')
+			# print(school.id, master_pref_list, list(student_wish_open), 'open')
+
+			prec_studs_work = []
+			prec_studs_resv = prec_order(school.capacity, student_wish_resv, school.pref_list)
+			prec_studs_open = prec_order(school.capacity, student_wish_open, master_pref_list)
+				
+			if school.pick_order is pick_order['RESERVE_OPEN']:
+				prec_studs_work.extend(prec_studs_resv)
+				prec_studs_work.extend(prec_studs_open)
+
+			elif school.pick_order is pick_order['TOGGLE_RESERVE_OPEN']:
+				length = max(len(prec_studs_resv), len(prec_studs_open))
+				for index in range(0, length):
+					
+					if index < len(prec_studs_resv):
+						prec_studs_work.append(prec_studs_resv[index])
+					if index < len(prec_studs_open):
+						prec_studs_work.append(prec_studs_open[index])
+			
+			elif school.pick_order is pick_order['OPEN_RESERVE']:
+				prec_studs_work.extend(prec_studs_open)
+				prec_studs_work.extend(prec_studs_resv)
+
+			elif school.pick_order is pick_order['TOGGLE_OPEN_RESERVE']:
+				length = max(len(prec_studs_resv), len(prec_studs_open))
+				for index in range(0, length):
+					
+					if index < len(prec_studs_open):
+						prec_studs_work.append(prec_studs_open[index])
+					if index < len(prec_studs_resv):
+						prec_studs_work.append(prec_studs_resv[index])
+
+			# Add posible students, but cater for school.capacity:
+			prec_studs_work = prec_studs_work[0:school.capacity]
+			school.add_students(prec_studs_work)
+			for student_id in prec_studs_work:
+				unmatched_student_ids.discard(student_id)
+
+		for student_id in unmatched_student_ids:
+			student = get_student(student_id)
+			student.priority = student.priority + 1
+
+	print('# School ID\tStudent ID\tPriority')
+	for school in schools:
+		for student_id in school.students:
+			student = get_student(student_id)
+			print(str(school.id) + '\t' + str(student_id) + '\t' + str(student.priority))
+
+main()
+# vim: noet sw=2 ts=2 sts=2
