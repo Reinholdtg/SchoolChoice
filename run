@@ -11,7 +11,7 @@ then
 	test -z "$wanted" && wanted=50
 	num_of_iters=$1; shift
 
-	out_dir="out/$(date +%s)"
+	out_dir="out/$(date +%Y-%m-%d-%H-%M-%S)"
 	mkdir -p "$out_dir"
 	seq "$num_of_iters" | while read num
 	do
