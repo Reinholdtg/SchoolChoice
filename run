@@ -15,9 +15,9 @@ then
 	mkdir -p "$out_dir"
 	seq "$num_of_iters" | while read num
 	do
-		./gendta2 ${@--i 1000 -s 5 -w 50 -a 2} >&2
+		./gendta2 ${@--i 1000 -s 5 -w $wanted -a 1} >&2
 		./bostonAlgr > boston.out
-		awk -v OFS='\t' -v wanted="$wanted" '
+		awk -v OFS='\t' -v bottomPart=50 '
 			BEGIN {
 				print "# Priority", "+/-", "Count"
 			}
@@ -27,7 +27,7 @@ then
 				next
 			}
 			{
-				gpa = total * (wanted / 100) >= stud[$2] ? 1 : 0 # 1 = +, 0 = -
+				gpa = total * (bottomPart / 100) >= stud[$2] ? 1 : 0 # 1 = +, 0 = -
 				a[$3"_"gpa]++
 				max_priv = max_priv > $3 ? max_priv : $3
 			}
