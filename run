@@ -40,11 +40,11 @@ then
 			}
 		' masterPrefList.txt boston.out > priority.out
 
-		cp schools.txt "$out_dir/schools_$num.csv"
+		# cp schools.txt "$out_dir/schools_$num.csv"
 		cp priority.out "$out_dir/priority_$num.csv"
-		cp students.txt "$out_dir/students_$num.csv"
-		cp boston.out "$out_dir/boston_$num.csv"
-		cp masterPrefList.txt "$out_dir/master_$num.csv"
+		# cp students.txt "$out_dir/students_$num.csv"
+		# cp boston.out "$out_dir/boston_$num.csv"
+		# cp masterPrefList.txt "$out_dir/master_$num.csv"
 		./stats < boston.out > "$out_dir/stats_$num.csv"
 	done
 
@@ -53,10 +53,15 @@ then
 		cat "$out_dir/priority_$num.csv"
 	done > "$out_dir/priority.csv"
 
+	rm "$out_dir/priority_"*".csv"
+
 	seq "$num_of_iters" | while read num
 	do
 		cat "$out_dir/stats_$num.csv"
 	done > "$out_dir/stats.csv"
+
+	rm "$out_dir/stats_"*".csv"
+
 elif [ "$type" = '--stats' ] || [ "$type" = '-s' ]
 then
 	./bostonAlgr "$@" | ./stats
