@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+
+import argparse, sys, random, math
+
+pick_order = dict()
+pick_order['RESERVE_OPEN'] = 1 # DEFAULT
+pick_order['TOGGLE']       = 2
+pick_order['OPEN_RESERVE'] = 3
+
+def iter_school(school, iteration):
+	student_pref = school['student_pref'][iteration]
+
+	majobuff = []
+	s = sorted(student_pref, key=lambda student: -1 * student['grade'])
+
+	for student in s:
+		if school['cap'] is 0:
+			break
+
+		if student['id'] not in unmatched_students:
+			continue
+
+		if args.algorithm is pick_order['TOGGLE']:
+			if school['minocap'] > 0:
+				if i_gradedict[student['id']] < mino_margin:
+					school['minocap'] = school['minocap'] - 1
+					add_stud(student, school, iteration, True)
+					if school['minocap'] is 0:
+						for student in majobuff:
+							if school['cap'] is 0:
+								majobuff = []
+								break
+							add_stud(student, school, iteration, False)
+
+						majobuff = []
+
+					elif school['cap'] > 0 and len(majobuff) > 0:
+						student = majobuff.pop(0)
+						add_stud(student, school, iteration, False)
+						
+				else:
+					majobuff.append(student)
+			else:
+				add_stud(student, school, iteration, False)
+				
+		# Add majo student, fall though to RESERVE_OPEN algorithm when majo
+		# cap is reached
+		elif args.algorithm is pick_order['OPEN_RESERVE'] and school['majocap'] > 0:
+			school['majocap'] = school['majocap'] - 1
+			add_stud(student, school, iteration, False)
+				
+		# Add mino student
+		elif school['minocap'] > 0 and i_gradedict[student['id']] < mino_margin:
+			school['minocap'] = school['minocap'] - 1
+			add_stud(student, school, iteration, True)
+			if school['minocap'] is 0:
+				for student in majobuff:
+					if school['cap'] is 0:
+						majobuff = []
+						break
+					add_stud(student, school, iteration, False)
+
+				majobuff = []
+		
+		# Add student if mino cap is gone 
+		elif school['minocap'] is 0:
+			add_stud(student, school, iteration, False)
+		# Add majo student, iff the cap is not reached when all mino students
+		# (In this iteration) have been considered.
+		else:
+			majobuff.append(student)
+
+	for student in majobuff:
+		if school['cap'] is 0:
+			break
+		add_stud(student, school, iteration, False)
+
+def add_stud(student, school, iteration, from_mino):
+	school['accepted_students'].append(student)
+	school['cap'] = school['cap'] - 1
+	student['iteration'] = iteration
+	student['from_mino'] = from_mino
+	del unmatched_students[student['id']]
+
+parser = argparse.ArgumentParser(
+	usage='usage: doItAll [OPTION]...',
+	formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=100),
+	add_help=False,
+	description='Does it All'
+)
+
+general_group = parser.add_argument_group('options')
+
+general_group.add_argument('-s', '--schools',
+	dest='schools', metavar='N', type=int, default=0, help='Number of schools'
+)
+
+general_group.add_argument('-i', '--students',
+	dest='students', metavar='N', type=int, default=0, help='Number of students'
+)
+
+general_group.add_argument('-a', '--algorithm',
+	dest='algorithm', metavar='N', type=int, default=pick_order['RESERVE_OPEN'], help='Algorithm to Use'
+)
+
+general_group.add_argument('-w', '--wanted',
+	dest='wanted', metavar='N', type=int, default=50, help='Percent of students schools want'
+)
+
+general_group.add_argument('--help',
+	dest='help', action='store_true', default=False, help='show this help message and exit'
+)
+
+args = parser.parse_args()
+
+if args.help:
+	parser.print_help()
+	sys.exit(0)
+
+mino_margin = args.students / 2
+
+unmatched_students = dict()
+student_arr = []
+for student_id in range(1, args.students + 1):
+	student = dict()
+	student['id']    = student_id
+	student['loc']   = random.random()
+	student['grade'] = random.random()
+	unmatched_students[student_id] = student
+	student_arr.append(student)
+
+# Shitty to Good
+i_grade = sorted(student_arr, key=lambda student: student['grade'])
+i_gradedict = dict()
+
+for index, student in enumerate(i_grade):
+	i_gradedict[student['id']] = index
+
+schools = dict()
+school_arr = []
+for school_id in range(1, args.schools + 1):
+
+	school = dict()
+	school['id']  = school_id
+	school['cap'] = random.randint(int(1 + args.students / args.schools), int((1 + args.students / args.schools) * 1.1))
+	school['minocap'] = math.ceil(school['cap'] / 100 * args.wanted)
+	school['majocap'] = school['cap'] - school['minocap']
+	school['loc'] = random.random()
+	school['student_pref'] = []
+	school['accepted_students'] = []
+
+	for pref in range(0, args.schools):
+		school['student_pref'].append([])
+
+	schools[school_id] = school
+	school_arr.append(school)
+
+for student_id, student in unmatched_students.items():
+	s_loc = sorted(school_arr, key=lambda school:
+			abs(school['loc'] - student['loc']))
+
+	pref = map(lambda s: s['id'], s_loc)
+
+	for index, school_id in enumerate(pref):
+		school = schools[school_id]
+		school['student_pref'][index].append(student)
+
+iteration = 0
+while bool(unmatched_students):
+	for school_id, school in schools.items():
+		if school['cap'] is 0:
+			pass
+
+		iter_school(school, iteration)
+
+	iteration = iteration + 1
+
+print("# School ID\tStudent ID\tPriority\tIs Mino\tGot Mino")
+for school_id, school in schools.items():
+	for student in school['accepted_students']:
+		print("{:d}\t{:d}\t{:d}\t{:d}\t{:d}".format(
+			school['id'],
+			student['id'],
+			student['iteration'],
+			i_gradedict[student['id']] < mino_margin,
+			student['from_mino']
+		))
+
+# vim: noet sw=2 ts=2 sts=2
