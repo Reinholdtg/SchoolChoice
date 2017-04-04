@@ -48,7 +48,7 @@ do
 			awk '
 				BEGIN { OFS="\t" }
 				/^#/ { next }
-				{ p[$4"\t" ( $5 ? "0" : "1")]++ }
+				{ p[$4"\t" ( $5 ? "1" : "0")]++ }
 				END { print("# Minority?", "Reserve Seat?", "Count")
 				      for (prop in p) {
 					print(prop, p[prop]) }}' "$tmp_out" >&5
