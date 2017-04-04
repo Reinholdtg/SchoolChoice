@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+students=1000
+schools=5
+iterations=2
+
+datestr=$(date +%Y-%m-%d-%H-%M-%S)
+for algorithm in 1 2 3
+do
+	out_dir="out/${datestr}/algo-$algorithm"
+	stat_dir="$out_dir/stat"
+	prio_dir="$out_dir/prio"
+	usag_dir="$out_dir/usage"
+
+	mkdir -p "$out_dir"
+	mkdir -p "$stat_dir"
+	mkdir -p "$prio_dir"
+	mkdir -p "$usag_dir"
+
+	for w in {10..12}
+	#for w in 10
+	do
+		exec 3>"$stat_dir/$w.csv"
+		exec 4>"$prio_dir/$w.csv"
+		exec 5>"$usag_dir/$w.csv"
+		seq "$iterations" | while read iteration
+		do
+			tmp_out=$(mktemp)
+			./doItAll -i "$students" -s "$schools" -w "$w" -a "$algorithm" \
+				> "$tmp_out"
+			awk '
+				BEGIN { OFS="\t" }
+				/^#/ { next }
+				{ mino[$1] += $4
+				  majo[$1] += $4 ? 0 : 1 }
+				END { print("# School ID", "-", "+")
+				      for (id in mino)
+					print(id, mino[id], majo[id]) }' "$tmp_out" >&3
+
+			awk '
+				BEGIN { OFS="\t" }
+				/^#/ { next }
+				{ p[$3"\t" ( $4 ? "-" : "+")]++ }
+				END { print("# Prio", "+/-", "Count")
+				      for (prop in p) {
+					print(prop, p[prop]) }}' "$tmp_out" >&4
+
+			awk '
+				BEGIN { OFS="\t" }
+				/^#/ { next }
+				{ p[$4"\t" ( $5 ? "0" : "1")]++ }
+				END { print("mino", "0/1", "Count")
+				      for (prop in p) {
+					print(prop, p[prop]) }}' "$tmp_out" >&5
+
+			rm "$tmp_out"
+		done
+		exec 3<&-
+		exec 4<&-
+		exec 5<&-
+	done &
+done
+wait
