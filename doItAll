@@ -13,6 +13,9 @@ def iter_school(school, iteration):
 	majobuff = []
 	s = sorted(student_pref, key=lambda student: -1 * student['grade'])
 
+	last_mino = None
+	last_open = None
+
 	for student in s:
 		if school['cap'] is 0:
 			break
@@ -25,46 +28,54 @@ def iter_school(school, iteration):
 				if i_gradedict[student['id']] < mino_margin:
 					school['minocap'] = school['minocap'] - 1
 					add_stud(student, school, iteration, True)
+					last_mino = student
 					if school['minocap'] is 0:
 						for student in majobuff:
 							if school['cap'] is 0:
 								majobuff = []
 								break
 							add_stud(student, school, iteration, False)
+							last_open = student
 
 						majobuff = []
 
 					elif school['cap'] > 0 and len(majobuff) > 0:
 						student = majobuff.pop(0)
 						add_stud(student, school, iteration, False)
-						
+						last_open = student
+
 				else:
 					majobuff.append(student)
 			else:
 				add_stud(student, school, iteration, False)
-				
+				last_open = student
+
 		# Add majo student, fall though to RESERVE_OPEN algorithm when majo
 		# cap is reached
 		elif args.algorithm is pick_order['OPEN_RESERVE'] and school['majocap'] > 0:
 			school['majocap'] = school['majocap'] - 1
 			add_stud(student, school, iteration, False)
-				
+			last_open = student
+
 		# Add mino student
 		elif school['minocap'] > 0 and i_gradedict[student['id']] < mino_margin:
 			school['minocap'] = school['minocap'] - 1
 			add_stud(student, school, iteration, True)
+			last_mino = student
 			if school['minocap'] is 0:
 				for student in majobuff:
 					if school['cap'] is 0:
 						majobuff = []
 						break
 					add_stud(student, school, iteration, False)
+					last_open = student
 
 				majobuff = []
-		
-		# Add student if mino cap is gone 
+
+		# Add student if mino cap is gone
 		elif school['minocap'] is 0:
 			add_stud(student, school, iteration, False)
+			last_open = student
 		# Add majo student, iff the cap is not reached when all mino students
 		# (In this iteration) have been considered.
 		else:
@@ -74,6 +85,13 @@ def iter_school(school, iteration):
 		if school['cap'] is 0:
 			break
 		add_stud(student, school, iteration, False)
+		last_open = student
+
+	# Used for caluculation cheat for students
+	if iteration is 0:
+		school['cap0'] = school['cap']
+		school['last_mino'] = last_mino
+		school['last_open'] = last_open
 
 def add_stud(student, school, iteration, from_mino):
 	school['accepted_students'].append(student)
@@ -126,6 +144,7 @@ for student_id in range(1, args.students + 1):
 	student['id']    = student_id
 	student['loc']   = random.random()
 	student['grade'] = random.random()
+	student['cheat'] = 0
 	unmatched_students[student_id] = student
 	student_arr.append(student)
 
@@ -149,22 +168,29 @@ for school_id in range(1, args.schools + 1):
 	school['student_pref'] = []
 	school['accepted_students'] = []
 
+	# Initiate list to store stutent priority
 	for pref in range(0, args.schools):
 		school['student_pref'].append([])
 
 	schools[school_id] = school
 	school_arr.append(school)
 
+# Update school with students priorities
 for student_id, student in unmatched_students.items():
 	s_loc = sorted(school_arr, key=lambda school:
 			abs(school['loc'] - student['loc']))
 
 	pref = map(lambda s: s['id'], s_loc)
+	student['school_pref'] = []
 
 	for index, school_id in enumerate(pref):
 		school = schools[school_id]
 		school['student_pref'][index].append(student)
+		student['school_pref'].append(school_id)
 
+
+# Iterate unmatched stutent
+pos_cheat = []
 iteration = 0
 while bool(unmatched_students):
 	for school_id, school in schools.items():
@@ -175,15 +201,36 @@ while bool(unmatched_students):
 
 	iteration = iteration + 1
 
-print("# School ID\tStudent ID\tPriority\tIs Mino\tGot Mino")
+	if iteration is 3: # At third iteration students could potential cheat for a
+										# better match.
+		for stud_id, stud in unmatched_students.items():
+			pos_cheat.append(stud)
+
+# Check pos cheat students
+for student in pos_cheat:
+	cheat_pref = student['school_pref'][1:student['iteration']]
+	is_mino = i_gradedict[student['id']] < mino_margin
+
+	for school_id in cheat_pref:
+		school = schools[school_id]
+		if ((school['cap0'] > 0)
+			or (is_mino and school['last_mino'] is not None
+				and i_gradedict[student['id']] > i_gradedict[school['last_mino']['id']])
+			or (school['last_open'] is not None
+				and i_gradedict[student['id']] > i_gradedict[school['last_open']['id']])):
+			student['cheat'] = 1
+			break
+
+print("# School ID\tStudent ID\tPriority\tIs Mino\tGot Mino\tCould Cheat")
 for school_id, school in schools.items():
 	for student in school['accepted_students']:
-		print("{:d}\t{:d}\t{:d}\t{:d}\t{:d}".format(
+		print("{:d}\t{:d}\t{:d}\t{:d}\t{:d}\t{:d}".format(
 			school['id'],
 			student['id'],
 			student['iteration'],
 			i_gradedict[student['id']] < mino_margin,
-			student['from_mino']
+			student['from_mino'],
+			student['cheat']
 		))
 
 # vim: noet sw=2 ts=2 sts=2
